@@ -1,148 +1,150 @@
-# contest2026_197_Q1KOqinkong
+# FoodLoop
 
-👋 欢迎参加 **2026 首届 openvela AI 硬件开发者大赛**！
+FoodLoop is an ESP32-S3-EYE food-storage assistant built on openvela. It uses
+an explicit BOOT-button press to capture one food-package image, presents a
+reviewable draft, and stores only user-confirmed food records locally.
 
-这是组委会为你的队伍创建的**专属参赛仓库**（本仓为样例/模板，队伍编号 `197`；你看到的将是你自己的 `contest2026_<编号>_<队伍名>`）。比赛期间，你的全部参赛代码、打包产物与 AI Coding 日志都提交到这里。
+This submission contains the native FoodLoop application, ESP32-S3-EYE
+configuration, local Windows gateway tools, a Food Guardian Skill, a companion
+QuickApp prototype, and project documentation. The validated hardware result
+in this repository is the single-frame capture flow. The local gateway and
+record-confirmation path are implemented and can be exercised with the
+included mock gateway. A successful end-to-end production MiMo vision request
+is not claimed by this submission.
 
-> 本仓既是「代码仓」，又内置了一键拉取整套 openvela 工程的 `repo` 清单（manifest）。你只需跟它打交道，**自始至终只动一个文件夹**。
+## Direction
 
----
+AI hardware product innovation. FoodLoop combines openvela camera, button,
+LCD, file-system, Wi-Fi, and AI Agent capabilities with a local MiMo gateway
+design. Its privacy boundary is deliberate:
 
-## 一、先读这些官方文档
+- The camera stays closed while FoodLoop is idle.
+- The BOOT button is the production capture trigger.
+- One scan captures one 320 by 240 RGB565 frame.
+- The temporary image is replaced by the next scan and is cleared on reboot.
+- Cloud analysis is an explicit scan action, never a background upload.
 
-**通用（所有赛道必读）：**
+## Current implementation status
 
-| 文档                                                                                                                                     | 用途                                           |
-| ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| [《大赛总览》](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/contest_overview.md)                        | 赛道、流程、评分、资源，建议先通读             |
-| [《参赛代码提交指南》](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/code_submission_guide.md)           | 仓库获取、提交流程、时间与权限（**以此为准**） |
-| [《AI Coding 日志归集与提交手册》](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/ai_coding_log_guide.md) | 如何导出 AI 对话日志并提交到 `logs/`           |
+| Area | Status |
+| --- | --- |
+| BOOT-triggered one-shot camera capture | Verified on the ESP32-S3-EYE |
+| LCD capture and draft states | Implemented in the native application |
+| RGB565 upload and local gateway protocol | Implemented |
+| Gateway preprocessing and constrained draft parser | Implemented |
+| Mock gateway confirmation flow | Exercised with HTTP 200 responses |
+| MiMo Token Plan bridge | Implemented for a trusted local network |
+| Real MiMo vision flow | Not confirmed end to end; the saved gateway log includes one HTTP 502 result |
+| Local JSONL record storage and status command | Implemented |
+| Food Guardian Skill and daily cron deployment helper | Implemented; deployment must be repeated after reboot because the configured Agent data directory is tmpfs |
+| Companion QuickApp | UI prototype using mock inventory data |
 
-**按你的赛道选读（三选一）：**
+## Architecture
 
-| 赛道                  | 教程导航                                                                                                                                                 |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 快应用 / 手表应用创新 | [快应用教程导航](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/quickapp/quickapp_guide_index.md)                         |
-| AI 硬件产品创新       | [AI 硬件赛道教程导航](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/ai_hardware/ai_hardware_guide_index.md)              |
-| 新硬件适配            | [新硬件适配赛道教程导航](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/hardware_porting/hardware_porting_guide_index.md) |
+~~~text
+BOOT press
+  -> one QVGA RGB565 image on ESP32-S3-EYE
+  -> LCD preview
+  -> optional local FoodLoop gateway
+  -> RGB565 to PNG, contrast enhancement, two-stage draft request
+  -> draft on LCD
+  -> BOOT confirmation
+  -> records.jsonl on microSD, with tmpfs fallback
+  -> foodloop list and foodloop status
+~~~
 
----
+The draft contract preserves uncertainty. Items with needs_confirmation remain
+excluded from expiry reminders until a later review resolves the ambiguity.
 
-## 二、第一步：拉取完整工程
+## Repository layout
 
-用组委会提供的命令一键拉取「openvela 全量源码 + 你的专属仓」：
+- app/foodloop contains the native device application and Food Guardian Skill.
+- board/foodloop contains the ESP32-S3-EYE FoodLoop configuration.
+- tools/windows contains build, serial, Wi-Fi, local gateway, mock gateway,
+  and Skill deployment helpers.
+- tools/patches contains the optional Windows MSYS Kconfig path patch used in
+  the original local workspace.
+- quickapp/hello_quickapp contains a companion UI prototype with mock data.
+- docs contains the protocol, M1 validation note, project plan, and submission
+  status.
 
-```bash
-repo init -u https://github.com/open-vela/contest2026_197_Q1KOqinkong \
-  -b dev-ai-contest-2026 -m contest2026_197_Q1KOqinkong.xml
-repo sync -c -j8
-```
+## Build and run
 
-同步后，你的整个仓库位于工作区的 `contest2026_197_Q1KOqinkong/`，openvela 全量源码在外层（`nuttx/`、`apps/`、`packages/`、`vendor/` 等）。
+Use the repository manifest to obtain the surrounding openvela workspace and
+open an MSYS2 shell with the contest toolchain. From the workspace root:
 
----
+~~~bash
+bash contest2026_197_Q1KOqinkong/tools/windows/configure-foodloop.sh
+bash contest2026_197_Q1KOqinkong/tools/windows/build-foodloop.sh
+~~~
 
-## 三、第二步：在哪里写代码
+The build produces nuttx/nuttx.bin. The source workspace used for this
+submission had a Windows-only Kconfig path compatibility change in the common
+NuttX configure script. The exact patch is included in
+tools/patches/nuttx-configure-windows.patch for disclosure and optional local
+reproduction; it is not silently applied by the contest scripts.
 
-**只在自己的仓目录 `contest2026_197_Q1KOqinkong/` 里开发。** 不同作品形态放在对应子目录，manifest 会通过 `<linkfile>` 把它们**软链**到 openvela 编译树该在的位置——你不用手动 copy：
+After flashing and opening the serial console, the main commands are:
 
-| 作品形态 | 你的代码放这里             | 系统自动映射到                                 |
-| -------- | -------------------------- | ---------------------------------------------- |
-| 应用     | `app/hello_app/`           | `packages/demos/contest2026_197_hello_app`     |
-| 快应用   | `quickapp/hello_quickapp/` | `packages/apps/contest2026_197_hello_quickapp` |
-| 板级适配 | `board/contest_board/`     | `vendor/openvela/boards/contest2026_197_board` |
+~~~text
+foodloop
+foodloop capture
+foodloop scan <gateway-ip>
+foodloop list
+foodloop status YYYY-MM-DD
+foodloop demo
+~~~
 
-> 用不到的形态目录可以删掉；新增作品时按同样规则加子目录，并在 `contest2026_197_Q1KOqinkong.xml` 里补一条 `<linkfile>` 映射即可。**生产仓库（packages/nuttx/vendor 等）零改动。**
+foodloop demo is a presentation-only loop. It cycles through the home,
+capturing, analyzing, draft-ready and confirmed screens with a visible DEMO
+badge. It does not open the camera, contact the gateway, or write records.
 
-建议仓库目录约定（便于评委定位）：
+To exercise the local confirmation path without a MiMo request:
 
-```text
-app/ | quickapp/ | board/   # 你的作品代码
-logs/                       # AI Coding 日志（主动导出后提交，格式见 logs/README.md）
-README.md                   # 作品说明（提交前请改成你自己的，见第六节）
-```
+~~~powershell
+python .\contest2026_197_Q1KOqinkong\tools\windows\mock-foodloop-gateway.py --port 8790
+~~~
 
-> 仓内附带了一个 `.gitignore.example`，给出了**编译产物**等不需要进仓的文件示例。如需启用，`cp .gitignore.example .gitignore` 后按需增删即可。**注意 `logs/` 下最终导出的 AI Coding 日志必须提交，不要忽略。**
->
-> `logs/` 的目录结构与提交格式见 [logs/README.md](logs/README.md)。
+Then use foodloop scan with the host computer IP and port 8790. The real
+gateway and bridge setup is documented in tools/windows/README.md.
 
----
+## Validation evidence
 
-## 四、第三步：编译与运行
+- The M1 board validation recorded a physical BOOT press, a 153600-byte QVGA
+  RGB565 frame, and return to an idle state with the camera closed. See
+  docs/m1-validation.md.
+- A saved firmware build produced nuttx.bin. The build emitted warnings, so
+  this is evidence of a completed build rather than a clean warning-free
+  build.
+- The local mock gateway recorded two 153600-byte board requests and returned
+  valid HTTP 200 draft responses.
+- The real gateway was started and passed its health probe, but the retained
+  record includes an HTTP 502 response from the MiMo-side path. This is an
+  unresolved limitation, not a completed-cloud claim.
 
-编译/运行步骤随作品形态不同而不同，请参考你所在赛道的教程导航：
+## Known limitations
 
-- 快应用 / 手表应用：[快应用教程导航](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/quickapp/quickapp_guide_index.md)（含模拟器与开发板部署）。
-- AI 硬件产品创新：[AI 硬件赛道教程导航](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/ai_hardware/ai_hardware_guide_index.md)（环境搭建、编译烧录、Skill 开发）。
-- 新硬件适配：[新硬件适配赛道教程导航](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/hardware_porting/hardware_porting_guide_index.md)（BSP 移植、最小 NSH 基线）。
+- This repository does not include a video or screenshots; those are external
+  deliverables still required by the competition submission process.
+- Direct MiMo vision analysis has not been demonstrated successfully from the
+  retained evidence.
+- The QuickApp does not yet synchronize real records or mutate board storage.
+- The Agent Skill and cron definition are deployed to tmpfs and must be
+  re-deployed after a board reboot.
 
-子目录已通过 manifest 中的 `<linkfile>` 软链进 openvela 编译树，因此构建在 openvela 工作区**根目录**（即你这个仓的上一级）进行。openvela 使用 `build.sh` 作为统一入口，接收一个 **board config 路径**作为参数：
+## AI Coding records
 
-```bash
-# 进入 openvela 工作区根目录（你的仓的上一级）
-cd ..
+A genuine Codex Desktop rollout was recovered from the local session store and
+converted into an explicitly marked partial project-development excerpt under
+`logs/Q1KO-Official/`. The JSONL contains 576 validated events from eight
+selected development turns, with the source session id, timestamps, visible
+messages, tool calls, tool outputs, and a completeness warning in
+`manifest.json`. The official log validator reports `ALL OK`.
 
-# 通用语法：第一个参数是 board config 路径，第二个参数可以是 menuconfig / distclean 等
-./build.sh <board-config-path> [menuconfig|distclean] [-j8]
-```
+This is not a complete session export: non-development and later recovery turns
+are omitted, hidden encrypted reasoning is not reconstructed, and the old
+contest template log was removed rather than submitted as evidence.
 
-> 具体的 board config 路径、目标产物、模拟器/真机部署方式请以你所在赛道的教程导航为准。本仓 `app/` `quickapp/` `board/` 三个示例骨架对应的 Kconfig 选项可通过 `menuconfig` 启用。
+## License
 
----
-
-## 五、第四步：提交作品
-
-1. **fork** 你的专属仓 → 开发 → `git commit` 并推送 → 向专属仓发起 **Pull Request**，可**自行 review 并合入**（无需等组委会）。
-2. **AI Coding 日志**：与 AI 工具的对话会自动记录到本机 staging（不会自动上传），需你**主动导出/打包**选定会话到仓内 `logs/` 目录后一并提交。详见[《AI Coding 日志归集与提交手册》](https://github.com/open-vela/docs/blob/dev-ai-contest-2026/zh-cn/contest_2026/ai_coding_log_guide.md)。
-3. 若需改动 **nuttx 等公共仓库**，不在本仓改，而是 fork 对应公共仓、以 PR 提交到 `dev-ai-contest-2026` 分支，由组委会 review 后合入。
-
-> ⏰ **提交作品截止：9 月 20 日**。截止后统一收回 push 权限，仍可查看 / clone。
->
-> 获奖后再按要求将作品 PR 至 openvela 上游对应仓库（走标准 PR + CI 流程）。
-
-### 关于 PR 与 CLA
-
-- 本仓所有改动通过 **Pull Request** 合入（分支保护强制，可自行合入自己的 PR）。
-- 首次贡献需在[**官网签署 CLA**](https://openvela.com/#/community/cla)；PR 上会自动跑 `cla/signature` 检查，在官网签署成功后，在 PR 评论 `/check-cla` 复检即可通过。
-
----
-
-## 六、提交前：把本 README 改成你的作品说明
-
-本文件目前是组委会给的**使用说明书**。**作品提交前，请把它替换成你自己作品的说明**，方便评委快速了解你做了什么、怎么跑起来。建议至少包含以下内容：
-
-```markdown
-# <你的作品名>
-
-## 一、作品简介
-<一句话/一段话说明这个作品是什么、解决什么问题、亮点在哪>
-
-## 二、选题方向
-<快应用 / 手表应用创新 ｜ AI 硬件产品创新 ｜ 新硬件适配 ｜ 自定方向，并简述理由>
-
-## 三、目录结构
-<列出你这个仓里各目录/文件的作用，例如：>
-- `app/xxx/`        — <说明>
-- `board/xxx/`      — <说明>
-- `quickapp/xxx/`   — <说明>
-- `logs/`           — AI Coding 日志
-- `docs/` 或其他    — <说明>
-
-## 四、运行方式
-<拉取工程后，如何编译、烧录/部署、运行的完整步骤；最好能让评委照着一步步复现>
-
-## 五、AI Coding 使用说明
-<说明本作品如何借助 AI 辅助开发：
-- 在需求拆解 / 方案设计 / 编码 / 调试 / 文档等环节如何与 AI 协作；
-- AI 对开发效率或质量带来的实际帮助。
-完整对话日志见 logs/ 目录>
-```
-
-> 提示：将会根据「作品本身 + 你的 README 说明 + `logs/` 里的 AI Coding 日志」来理解和评估你的作品，README 写清楚很重要。
-
----
-
-## 附：仓库命名规范
-
-`contest2026_<编号>_<队伍名>` — 编号三位零填充；队名 slug（全小写、英文/拼音、连字符）。例：`contest2026_197_Q1KOqinkong`。
-（仓库由组委会统一创建，**每队仅一个仓**，无需自行命名。）
+This project is provided under the Apache License 2.0. See LICENSE.

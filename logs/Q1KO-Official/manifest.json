@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "team_id": "contest2026_197",
+  "github_login": "Q1KO-Official",
+  "generator": "codex-desktop-recovery@1.0",
+  "updated_at": "2026-09-15T16:24:52.300Z",
+  "sessions": [
+    {
+      "session_id": "01a04916-0339-73e1-967f-2110701bd3db",
+      "tool": "codex",
+      "started_at": "2026-08-28T15:56:20.582Z",
+      "last_event_at": "2026-09-15T16:24:52.300Z",
+      "event_count": 576,
+      "file_path": "logs/Q1KO-Official/2026-08-28/codex__01a04916-0339-73e1-967f-2110701bd3db.jsonl",
+      "collection_mode": "vscode_extension_partial",
+      "data_completeness_warning": "Selected project-development excerpt from genuine Codex Desktop rollout records. Non-development and later recovery turns are omitted; this is not a complete session export.",
+      "health": "degraded",
+      "redacted_count_total": 59
+    }
+  ]
+}

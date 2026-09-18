@@ -2,7 +2,15 @@
 
 存放你在开发中与 AI 工具的对话日志，和作品代码一并提交。
 
-> 本目录现在是**示例**，请替换成你自己导出的真实日志（删掉示例的 `your-github-login/` 目录）。
+若真实日志不可恢复，可保留一份明确标注为非日志的缺失说明；该说明不替代
+官方要求的 JSONL 会话导出。
+
+> 当前目录中的模板日志已经移除。若没有真实导出，请保留 LOGS_UNAVAILABLE.md；它是缺失说明，不是 JSONL 会话日志。
+
+当前已从本机 Codex Desktop 会话恢复一份真实的项目开发摘录。它位于
+`logs/Q1KO-Official/`，并在 manifest 中标注为 `partial excerpt`；它不是完整
+会话导出。`docs/supporting-evidence/codex/` 中保留的是带临时身份的预览和
+转换来源说明。
 
 ## 目录结构
 
