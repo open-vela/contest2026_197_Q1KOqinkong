@@ -1,15 +1,154 @@
 <template>
-  <div class="container">
-    <text>Hello QuickApp - contest 2026 team 000</text>
+  <!-- FoodLoop 伴侣端骨架(2026 竞赛):库存审阅 + 到期状态。
+       mock 数据与板端 /mnt/foodloop/records.jsonl 的 draft.items 结构一致,
+       后续替换为局域网网关同步的真实 records.jsonl 即可。 -->
+  <div class="page">
+    <div class="header">
+      <text class="title">FoodLoop</text>
+      <text class="subtitle">PRIVATE FOOD LEDGER</text>
+    </div>
+
+    <div class="stats">
+      <div class="stat-cell">
+        <text class="stat-value">{{counts.today}}</text>
+        <text class="stat-label">USE TODAY</text>
+      </div>
+      <div class="stat-cell">
+        <text class="stat-value">{{counts.soon}}</text>
+        <text class="stat-label">USE SOON</text>
+      </div>
+      <div class="stat-cell">
+        <text class="stat-value">{{counts.expired}}</text>
+        <text class="stat-label">EXPIRED</text>
+      </div>
+      <div class="stat-cell">
+        <text class="stat-value">{{counts.total}}</text>
+        <text class="stat-label">TOTAL</text>
+      </div>
+    </div>
+
+    <text class="section">Inventory</text>
+    <list class="list">
+      <list-item for="item in items" class="row" type="item">
+        <div class="row-left">
+          <text class="row-name">{{item.name}}</text>
+          <text class="row-meta">{{item.storage}} · exp {{item.expiry_date || 'unknown'}}</text>
+        </div>
+        <text class="badge badge-{{item.status_key}}">{{item.status}}</text>
+      </list-item>
+      <list-item type="empty" class="empty" if="{{items.length === 0}}">
+        <text class="empty-text">No records yet. Scan food with BOOT on the device.</text>
+      </list-item>
+    </list>
   </div>
 </template>
 
 <style>
-.container { flex-direction: column; justify-content: center; align-items: center; }
+.page {
+  flex-direction: column;
+  background-color: #0b0f0d;
+  padding: 24px;
+}
+.header { margin-bottom: 20px; }
+.title { font-size: 36px; color: #48d39e; font-weight: bold; }
+.subtitle { font-size: 16px; color: #80998b; margin-top: 4px; }
+.stats {
+  flex-direction: row;
+  justify-content: space-between;
+  background-color: #0f1915;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+.stat-cell { flex-direction: column; align-items: center; }
+.stat-value { font-size: 32px; color: #ebf7ef; font-weight: bold; }
+.stat-label { font-size: 12px; color: #80998b; margin-top: 4px; }
+.section { font-size: 22px; color: #48d39e; margin-bottom: 12px; }
+.list { flex-direction: column; }
+.row {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #0f1915;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.row-left { flex-direction: column; }
+.row-name { font-size: 22px; color: #ebf7ef; }
+.row-meta { font-size: 14px; color: #80998b; margin-top: 4px; }
+.badge {
+  font-size: 14px;
+  color: #ebf7ef;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+.badge-expired { background-color: #ee564b; }
+.badge-today { background-color: #f5ca50; color: #0b0f0d; }
+.badge-soon { background-color: #f98f5c; }
+.badge-ok { background-color: #143a2a; }
+.badge-confirm { background-color: #80998b; }
+.empty { margin-top: 20px; }
+.empty-text { font-size: 16px; color: #80998b; text-align: center; }
 </style>
 
 <script>
+// mock 数据:与板端 records.jsonl 的 draft.items 字段一致
+// (name/category/expiry_date/storage/needs_confirmation/confidence)
+const MOCK_ITEMS = [
+  { name: 'MILK', category: 'dairy', expiry_date: '2026-08-10', storage: 'refrigerated', needs_confirmation: false, confidence: 0.9 },
+  { name: 'YOGURT', category: 'dairy', expiry_date: '2026-08-15', storage: 'refrigerated', needs_confirmation: false, confidence: 0.8 },
+  { name: 'BREAD', category: 'other', expiry_date: '2026-08-18', storage: 'room', needs_confirmation: false, confidence: 0.7 },
+  { name: 'RICE', category: 'other', expiry_date: '2027-01-01', storage: 'room', needs_confirmation: false, confidence: 0.9 },
+  { name: 'EGGS', category: 'other', expiry_date: '2026-08-20', storage: 'refrigerated', needs_confirmation: true, confidence: 0.4 }
+]
+
+function daysFromCivil(year, month, day) {
+  // 与板端 foodloop_main.c 的 foodloop_days_from_civil 等价
+  year -= (month <= 2) ? 1 : 0
+  const era = Math.floor((year >= 0 ? year : year - 399) / 400)
+  const yoe = year - era * 400
+  const doy = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1
+  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy
+  return era * 146097 + doe - 719468
+}
+
+function todayDays() {
+  const now = new Date()
+  return daysFromCivil(now.getFullYear(), now.getMonth() + 1, now.getDate())
+}
+
+function statusOf(item, today) {
+  if (item.needs_confirmation || !item.expiry_date) {
+    return { status: 'VERIFY', status_key: 'confirm' }
+  }
+  const parts = item.expiry_date.split('-').map(Number)
+  if (parts.length !== 3 || parts.some(isNaN)) {
+    return { status: 'NO DATE', status_key: 'ok' }
+  }
+  const delta = daysFromCivil(parts[0], parts[1], parts[2]) - today
+  if (delta < 0) return { status: 'EXPIRED', status_key: 'expired' }
+  if (delta === 0) return { status: 'TODAY', status_key: 'today' }
+  if (delta <= 3) return { status: 'SOON', status_key: 'soon' }
+  return { status: 'OK', status_key: 'ok' }
+}
+
 export default {
-  data: { msg: 'hello' }
+  data: {
+    items: [],
+    counts: { today: 0, soon: 0, expired: 0, total: 0 }
+  },
+  onInit() {
+    const today = todayDays()
+    const decorated = MOCK_ITEMS.map((it) => Object.assign({}, it, statusOf(it, today)))
+    const counts = { today: 0, soon: 0, expired: 0, total: decorated.length }
+    decorated.forEach((it) => {
+      if (it.status_key === 'today') counts.today += 1
+      if (it.status_key === 'soon') counts.soon += 1
+      if (it.status_key === 'expired') counts.expired += 1
+    })
+    this.items = decorated
+    this.counts = counts
+  }
 }
 </script>

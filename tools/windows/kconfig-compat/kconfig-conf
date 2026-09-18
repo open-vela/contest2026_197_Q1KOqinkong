@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+contest_root="$(cd "$script_dir/../../.." && pwd)"
+workspace_root="$(cd "$contest_root/.." && pwd)"
+python_workspace_root="$workspace_root"
+if command -v cygpath >/dev/null 2>&1; then
+  python_workspace_root="$(cygpath -m "$workspace_root")"
+fi
+PYTHONPATH=${PYTHONPATH-}
+if [ -n "$PYTHONPATH" ]; then
+  export PYTHONPATH="$python_workspace_root/prebuilts/tools/python/dist-packages;$PYTHONPATH"
+else
+  export PYTHONPATH="$python_workspace_root/prebuilts/tools/python/dist-packages"
+fi
+
+if [ -x "$workspace_root/.venv/Scripts/python.exe" ]; then
+  python_cmd="$workspace_root/.venv/Scripts/python.exe"
+elif command -v python3 >/dev/null 2>&1; then
+  python_cmd="$(command -v python3)"
+else
+  python_cmd="$(command -v python)"
+fi
+
+exec "$python_cmd" "$script_dir/kconfig-conf.py" "$@"

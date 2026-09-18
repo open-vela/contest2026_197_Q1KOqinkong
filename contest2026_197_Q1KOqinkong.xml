@@ -10,6 +10,7 @@
 
   <project path="contest2026_197_Q1KOqinkong" name="contest2026_197_Q1KOqinkong">
     <linkfile src="app/hello_app" dest="packages/demos/contest2026_197_hello_app"/>
+    <linkfile src="app/foodloop" dest="packages/demos/contest2026_197_foodloop"/>
     <linkfile src="quickapp/hello_quickapp" dest="packages/apps/contest2026_197_hello_quickapp"/>
     <linkfile src="board/contest_board" dest="vendor/openvela/boards/contest2026_197_board"/>
   </project>

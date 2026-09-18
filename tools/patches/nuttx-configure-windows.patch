@@ -1,0 +1,20 @@
+diff --git a/tools/configure.sh b/tools/configure.sh
+index 7cfe2f54..85861b62 100755
+--- a/tools/configure.sh
++++ b/tools/configure.sh
+@@ -241,8 +241,15 @@ fi
+ echo "  Copy files"
+ ln -sf ${src_makedefs} ${dest_makedefs} || \
+   { echo "Failed to symlink ${src_makedefs}" ; exit 8 ; }
++# Windows Python cannot resolve MSYS paths such as /d/OPENVELA. Keep the
++# generated Kconfig sources in a native, forward-slash path when cygpath is
++# available; POSIX hosts continue to use the existing path unchanged.
++kconfig_apps_path="${WSDIR}/apps"
++if command -v cygpath >/dev/null 2>&1; then
++  kconfig_apps_path=$(cygpath -m "${kconfig_apps_path}")
++fi
+ ${TOPDIR}/tools/process_config.sh -I ${configpath}/../../common/configs \
+-  -I ${configpath}/../common -I ${configpath} -I ${WSDIR}/apps -o ${dest_config} ${src_config}
++  -I ${configpath}/../common -I ${configpath} -I ${kconfig_apps_path} -o ${dest_config} ${src_config}
+ install -m 644 ${src_config} "${backup_config}" || \
+   { echo "Failed to backup ${src_config}" ; exit 10 ; }

@@ -1,0 +1,35 @@
+# Generated firmware and dependency files
+app/foodloop/.built
+app/foodloop/.depend
+app/foodloop/Make.dep
+app/foodloop/*.d.*
+*.o
+*.a
+*.elf
+*.hex
+*.map
+*.bin
+
+# Python and editor caches
+__pycache__/
+*.py[cod]
+.idea/
+.vscode/
+*.tmp
+*.log
+
+# Local credentials and bridge state
+.env
+.env.*
+agent_secrets.h
+mimo-bridge.json
+cron.json.tmp
+
+# Keep real contest AI Coding logs under logs/ tracked.
+!logs/
+!logs/**/
+!logs/**/*.jsonl
+!logs/**/manifest.json
+
+# Local provenance previews are kept outside the submission snapshot.
+/docs/supporting-evidence/

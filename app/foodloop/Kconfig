@@ -1,0 +1,12 @@
+#
+# FoodLoop native hardware application
+#
+
+config LVX_USE_DEMO_CONTEST2026_197_FOODLOOP
+	bool "FoodLoop privacy-first food capture"
+	default n
+	depends on INPUT_BUTTONS && VIDEO
+	help
+		Run FoodLoop on ESP32-S3-EYE. The camera is opened only after the
+		physical BOOT button is pressed and one QVGA RGB565 frame is saved
+		to temporary storage for the next MiMo recognition step.
